@@ -8,7 +8,7 @@
 - TypeScript
 - Tailwind CSS
 - Recharts (数据可视化)
-- Framer Motion (动画效果)
+- Framer Motion (动画效果) 
 - Vite (构建工具)
 
 ## 快速开始
