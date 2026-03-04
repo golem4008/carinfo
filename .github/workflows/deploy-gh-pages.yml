@@ -2,51 +2,58 @@ name: 自动打包并部署carinfo到GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ]  # 推送到main分支触发
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
+      # 步骤1：拉取仓库代码
       - name: 拉取仓库代码
         uses: actions/checkout@v4
 
+      # 步骤2：安装pnpm（解决pnpm not found）
       - name: 安装pnpm包管理器
         uses: pnpm/action-setup@v3
         with:
-          version: latest
-          run_install: false
+          version: latest  # 安装最新版pnpm
+          run_install: false  # 手动控制依赖安装
 
+      # 步骤3：安装Node.js（关联pnpm）
       - name: 安装Node.js环境
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: 'lts/*'  # 匹配最新LTS版本
           check-latest: true
-          cache: 'pnpm'  # 缓存类型为pnpm
-          # ========== 关键修改：指定pnpm锁文件路径 ==========
-          cache-dependency-path: './pnpm-lock.yaml'
+          cache: 'pnpm'  # 启用pnpm缓存，加速依赖安装
 
+      # 步骤4：配置pnpm国内镜像（避免依赖安装超时）
       - name: 配置pnpm国内镜像源
         run: pnpm config set registry https://registry.npmmirror.com
 
+      # 步骤5：验证环境（确认pnpm/node安装成功）
       - name: 验证pnpm/node版本
         run: |
           node -v
           pnpm -v
 
+      # 步骤6：安装项目依赖（用pnpm，匹配你的package.json）
       - name: 安装项目依赖
         run: pnpm install
 
+      # 步骤7：打包项目（关键！用build:github脚本，适配GitHub Pages路径）
       - name: 打包项目（适配GitHub Pages）
-        run: pnpm run build:github
+        run: pnpm run build:github  # 必须用build:github，而非build
 
+      # 步骤8：创建.nojekyll（禁用Jekyll，避免资源被忽略）
       - name: 创建.nojekyll文件
-        run: touch dist/.nojekyll
+        run: touch dist/.nojekyll  # vite build输出到dist，无需修改
 
+      # 步骤9：部署到GitHub Pages
       - name: 部署到GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
-          force_orphan: true
+          publish_dir: ./dist  # vite build:github输出到dist，匹配你的项目
+          publish_branch: gh-pages  # 部署到gh-pages分支
+          force_orphan: true  # 清空旧内容，避免冲突
