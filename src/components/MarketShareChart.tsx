@@ -149,25 +149,33 @@ const MarketShareChart: React.FC<MarketShareChartProps> = ({ className = '', dat
     const monthlySalesData = getCurrentMonthlySalesData(dateRange);
     
     // 获取数据中的所有月份
-    const monthsInData = Array.from(new Set(monthlySalesData.map(item => item.month)))
-      .sort((a, b) => parseInt(a) - parseInt(b));
+	  const yearMonthPairs = Array.from(new Set(monthlySalesData.map(item => `${item.year}-${item.month}`)))
+	    .sort((a, b) => {
+	      // 按「年→月」排序，保证时间顺序正确
+	      const [yearA, monthA] = a.split('-');
+	      const [yearB, monthB] = b.split('-');
+	      if (parseInt(yearA) !== parseInt(yearB)) {
+	        return parseInt(yearA) - parseInt(yearB);
+	      }
+	      return parseInt(monthA) - parseInt(monthB);
+	    });
     
     // 对于每个月，计算每个车企的市场份额
-    const monthlyCompanyShare = monthsInData.map(month => {
-      // 获取当前月的所有销量数据
-      const monthSalesData = monthlySalesData.filter(item => item.month === month);
-      
-      // 计算当前月的总销量
-      const monthTotalSales = monthSalesData.reduce((sum, item) => sum + item.sales, 0);
-      
-      // 找出当前月中包含所选车企的年份
-      const year = monthSalesData.length > 0 ? monthSalesData[0].year : 2025;
-      
-      // 构建当前月的数据对象
-      const monthData: any = {
-        month: formatMonthWithYear(month, year),
-        year
-      };
+	  const monthlyCompanyShare = yearMonthPairs.map(yearMonth => {
+	    const [year, month] = yearMonth.split('-');
+	    // 筛选当前「年+月」的销量数据（精准匹配，不再跨年份）
+	    const monthSalesData = monthlySalesData.filter(item => item.month === month && item.year === parseInt(year));
+	    
+	    // 计算当前月总销量
+	    const monthTotalSales = monthSalesData.reduce((sum, item) => sum + item.sales, 0);
+	    
+	    // 构建当前「年+月」的数据对象（month字段带年份，避免重叠）
+	    const monthData: any = {
+	      month: formatMonthWithYear(month, parseInt(year)), // 如"2025.01"、"2026.01"
+	      year: parseInt(year),
+	      rawMonth: month, // 保留原始月份（可选，用于扩展）
+	      rawYear: parseInt(year) // 保留原始年份（可选，用于扩展）
+	    };
       
       // 为每个公司计算市场份额
       selectedCompanies.forEach(company => {
@@ -461,7 +469,7 @@ const MarketShareChart: React.FC<MarketShareChartProps> = ({ className = '', dat
       {/* 叠放柱状图 - 月度销量市场份额（改为横轴为月份） */}
       <div className="mb-8">
         <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">月度销量市场份额</h4>
-        <div className="h-[400px]">
+        <div className="h-[700px]">
           {barChartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -551,7 +559,7 @@ const MarketShareChart: React.FC<MarketShareChartProps> = ({ className = '', dat
       {/* 新增：传统厂商市占率变化趋势折线图 */}
       <div className="mb-8">
         <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">传统厂商市占率变化趋势</h4>
-        <div className="h-[350px]">
+        <div className="h-[500px]">
           {traditionalMarketShareData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
              <LineChart
@@ -625,7 +633,7 @@ const MarketShareChart: React.FC<MarketShareChartProps> = ({ className = '', dat
       {/* 新增：新势力厂商市占率变化趋势折线图 */}
       <div>
         <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">新势力厂商市占率变化趋势</h4>
-        <div className="h-[350px]">
+        <div className="h-[500px]">
           {newEnergyMarketShareData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
              <LineChart

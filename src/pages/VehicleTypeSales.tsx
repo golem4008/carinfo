@@ -61,14 +61,77 @@ export default function VehicleTypeSales() {
       vehicleTypeSales[model.vehicleType] = (vehicleTypeSales[model.vehicleType] || 0) + model.sales;
     });
     
-    // 定义车辆类型的颜色映射
-    const vehicleTypeColors: Record<string, string> = {
-      'SUV': '#3b82f6',
-      '轿车': '#10b981',
-      '小型车': '#f59e0b',
-      '豪华SUV': '#8b5cf6',
-      '未知': '#8884d8'
-    };
+    // // 定义车辆类型的颜色映射
+    // const vehicleTypeColors: Record<string, string> = {
+    //   '紧凑型SUV': '#3b82f6',
+    //   '中型SUV': '#10b981',
+    //   '紧凑型车': '#f59e0b',
+    //   '豪华SUV': '#8b5cf6',
+    //   '未知': '#8884d8'
+    // };
+
+
+
+		// 定义车辆类型的颜色映射
+		// 1. 基于字符串生成固定哈希值（保证颜色不随机）
+		const getStringHash = (str: string): number => {
+		  let hash = 0;
+		  for (let i = 0; i < str.length; i++) {
+		    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+		    hash = hash & hash; // 转为32位整数
+		  }
+		  return hash;
+		};
+		
+		// 2. HSV转RGB（核心调整：降低饱和度和明度）
+		const hsvToRgb = (h: number, s: number, v: number): [number, number, number] => {
+		  let r, g, b;
+		  const i = Math.floor(h * 6);
+		  const f = h * 6 - i;
+		  const p = v * (1 - s);
+		  const q = v * (1 - f * s);
+		  const t = v * (1 - (1 - f) * s);
+		
+		  switch (i % 6) {
+		    case 0: r = v; g = t; b = p; break;
+		    case 1: r = q; g = v; b = p; break;
+		    case 2: r = p; g = v; b = t; break;
+		    case 3: r = p; g = q; b = v; break;
+		    case 4: r = t; g = p; b = v; break;
+		    case 5: r = v; g = p; b = q; break;
+		    default: r = v; g = v; b = v; break;
+		  }
+		  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+		};
+		
+		// 3. 哈希转「适度鲜艳」的颜色（关键调整：S=0.8，V=0.85）
+		const hashToSoftBrightColor = (hash: number): string => {
+		  const hue = (hash % 360) / 360; // 色相覆盖全色系，保证区分度
+		  // S=0.8（饱和度降低，不刺眼）、V=0.85（亮度适中）
+		  const [r, g, b] = hsvToRgb(hue, 0.8, 0.85); 
+		  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+		};
+		
+		// 4. 你的车型列表（替换为实际车型）
+		const allVehicleTypes = [
+		  '紧凑型SUV', '小型SUV', '中型SUV', '中大型SUV', '大型SUV', 
+		  '紧凑型车', '小型车', '中型车', '微型车', '中大型车', '大型车', '跑车',   
+		  '紧凑型MPV', '中型MPV', '中大型MPV', '大型MPV',
+			'微面'
+		];
+		
+		// 5. 生成固定的「适度鲜艳」颜色映射
+		const vehicleTypeColors: Record<string, string> = {};
+		allVehicleTypes.forEach(type => {
+		  const hash = getStringHash(type);
+		  vehicleTypeColors[type] = hashToSoftBrightColor(hash);
+		});
+		// 未知车型用适度鲜艳的灰色系（替代过艳的红色）
+		vehicleTypeColors['未知'] = '#9d80fe'; 
+
+
+
+		
     
     // 转换为图表数据格式
     const vehicleData = Object.keys(vehicleTypeSales)
@@ -425,7 +488,7 @@ export default function VehicleTypeSales() {
             transition={{ delay: 0.4 }}
           >
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">各厂商车辆类型分布</h3>
-                <div className="h-[350px]">
+                <div className="h-[1000px]">
                   {isLoading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="text-gray-500 dark:text-gray-400 flex items-center">
@@ -447,10 +510,10 @@ export default function VehicleTypeSales() {
                           axisLine={{ stroke: '#e5e7eb' }}
                           tickFormatter={(value) => formatNumber(value)}
                         />
-                        <YAxis 
+        <YAxis 
                           dataKey="manufacturer" 
                           type="category"
-                          tick={{ fill: '#6b7280' }} 
+                          tick={{ fill: '#6b7280', fontSize: 12 }} 
                           axisLine={{ stroke: '#e5e7eb' }}
                         />
                          <Tooltip 

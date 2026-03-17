@@ -104,7 +104,7 @@ export default function PriceSegmentedSales() {
          {/* 价格区间与能源类型销量对比 */}
          <PriceRangeComparisonChart className="mb-8" dateRange={dateRange} />
          
-         {/* 价格区间销量百分比分布 */}
+         {/* 车企价格区间销量百分比分布 */}
          <PriceRangePercentChart className="mb-8" dateRange={dateRange} />
 
         {/* 价格区间销量明细表 */}
