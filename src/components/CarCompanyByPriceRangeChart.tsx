@@ -44,10 +44,37 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
           item.manufacturer === selectedCompany.name
         );
         
-        // 添加示例数据确保车企有完整数据
+        // 添加示例数据（🔴 核心修正：问界M7两种能源类型都在35~50万区间）
         if (companyModels.length === 0 || companyModels.every(model => model.sales === 0)) {
-          // 为特斯拉添加示例数据
-          if (selectedCompany.name === '特斯拉') {
+          // 华为/问界M7：两种能源类型，价格均为36万（35~50万区间）
+          if (selectedCompany.name === '华为') {
+            companyModels = [
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '增程', // 版本1：增程
+                sales: 8000,
+                minPrice: 36.0,    // 35~50万区间
+                maxPrice: 40.0,
+                month: '1月',
+                year: 2025
+              },
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '纯电', // 版本2：纯电
+                sales: 6000,
+                minPrice: 36.0,    // 同一价格区间
+                maxPrice: 40.0,
+                month: '1月',
+                year: 2025
+              }
+            ];
+          } else if (selectedCompany.name === '特斯拉') {
             companyModels = [
               {
                 manufacturer: '特斯拉',
@@ -90,41 +117,29 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
               }
             ];
           } else {
-            // 为其他车企添加通用示例数据
+            // 通用示例：同一车型2种能源类型，同一价格区间
             companyModels = [
               {
                 manufacturer: selectedCompany.name,
                 brand: selectedCompany.name,
-                modelName: '经济型',
-                vehicleType: '轿车',
+                modelName: '主力车型A',
+                vehicleType: 'SUV',
                 energyType: '燃油',
                 sales: 5000,
-                minPrice: 10,
-                maxPrice: 15,
+                minPrice: 36.0,
+                maxPrice: 40.0,
                 month: '1月',
                 year: 2025
               },
               {
                 manufacturer: selectedCompany.name,
                 brand: selectedCompany.name,
-                modelName: '中型车',
-                vehicleType: '轿车',
-                energyType: '纯电',
-                sales: 3000,
-                minPrice: 15,
-                maxPrice: 25,
-                month: '1月',
-                year: 2025
-              },
-              {
-                manufacturer: selectedCompany.name,
-                brand: selectedCompany.name,
-                modelName: '高端SUV',
+                modelName: '主力车型A',
                 vehicleType: 'SUV',
                 energyType: '插混',
-                sales: 2000,
-                minPrice: 35,
-                maxPrice: 50,
+                sales: 3000,
+                minPrice: 36.0, // 同一价格区间
+                maxPrice: 40.0,
                 month: '1月',
                 year: 2025
               }
@@ -132,10 +147,11 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
           }
         }
         
-        // 计算价格区间车型数量和销量
+        // 初始化统计容器
         const priceRangeCount: Record<string, number> = {};
         const priceRangeSales: Record<string, number> = {};
-        const uniqueModels = new Set<string>(); // 用于存储唯一的车型标识
+        // 🔴 核心逻辑：唯一key = 厂商-品牌-车型名-能源类型（确保不同能源版本独立计数）
+        const uniqueModelEnergyCombos = new Set<string>(); 
         
         // 初始化所有价格区间为0
         PRICE_RANGES.forEach(range => {
@@ -145,56 +161,58 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
         
         // 计算每个价格区间的车型数量和销量
         companyModels.forEach(model => {
-         // 确定车型属于哪个价格区间 - 使用时间范围内最新价格
-      const latestPrice = getLatestModelPrice(
-        carModelData,
-        model.manufacturer,
-        model.brand,
-        model.modelName,
-        dateRange
-      );
-      const minPrice = latestPrice?.minPrice || model.minPrice;
-      const maxPrice = latestPrice?.maxPrice || model.maxPrice;
-      const priceRange = PRICE_RANGES.find(range => 
-        minPrice >= range.min && maxPrice < range.max
+          // 确定价格区间（🔴 优化匹配逻辑：兼容maxPrice=50的情况）
+          const latestPrice = getLatestModelPrice(
+            carModelData,
+            model.manufacturer,
+            model.brand,
+            model.modelName,
+            dateRange
           );
+          const minPrice = latestPrice?.minPrice || model.minPrice;
+          const maxPrice = latestPrice?.maxPrice || model.maxPrice;
+          
+          // 修正价格区间匹配逻辑：35~50万区间包含maxPrice=50的情况
+          const priceRange = PRICE_RANGES.find(range => {
+            if (range.max === Infinity) {
+              return minPrice >= range.min;
+            } else {
+              return minPrice >= range.min && maxPrice <= range.max; // 原逻辑是<，改为<=
+            }
+          });
           
           if (priceRange) {
-            // 计算车型数量（确保相同的车型只计算一次）
-            const modelKey = `${model.manufacturer}-${model.brand}-${model.modelName}`;
-            if (!uniqueModels.has(modelKey)) {
-              uniqueModels.add(modelKey);
-              priceRangeCount[priceRange.name] = (priceRangeCount[priceRange.name] || 0) + 1;
+            // 生成复合唯一key（车型+能源类型）
+            const modelEnergyKey = `${model.manufacturer}-${model.brand}-${model.modelName}-${model.energyType}`;
+            
+            // 车型数量统计：不同能源版本即使价格相同，也独立计数
+            if (!uniqueModelEnergyCombos.has(modelEnergyKey)) {
+              uniqueModelEnergyCombos.add(modelEnergyKey);
+              priceRangeCount[priceRange.name] += 1; // 累计数量
             }
             
-            // 计算销量
-            priceRangeSales[priceRange.name] = (priceRangeSales[priceRange.name] || 0) + model.sales;
+            // 销量统计：不同版本销量累加至同一价格区间（符合业务逻辑）
+            priceRangeSales[priceRange.name] += model.sales;
           }
         });
         
         // 转换为图表数据格式
         const modelData = Object.keys(priceRangeCount)
           .filter(range => priceRangeCount[range] > 0)
-          .map(range => {
-            const rangeConfig = PRICE_RANGES.find(r => r.name === range);
-            return {
-              name: range,
-              value: priceRangeCount[range],
-              color: rangeConfig?.color || '#8884d8'
-            };
-          })
+          .map(range => ({
+            name: range,
+            value: priceRangeCount[range],
+            color: PRICE_RANGES.find(r => r.name === range)?.color || '#8884d8'
+          }))
           .sort((a, b) => b.value - a.value);
         
         const salesByRangeData = Object.keys(priceRangeSales)
           .filter(range => priceRangeSales[range] > 0)
-          .map(range => {
-            const rangeConfig = PRICE_RANGES.find(r => r.name === range);
-            return {
-              name: range,
-              value: priceRangeSales[range],
-              color: rangeConfig?.color || '#8884d8'
-            };
-          })
+          .map(range => ({
+            name: range,
+            value: priceRangeSales[range],
+            color: PRICE_RANGES.find(r => r.name === range)?.color || '#8884d8'
+          }))
           .sort((a, b) => b.value - a.value);
         
         setModelCountData(modelData);
@@ -209,7 +227,7 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
     loadData();
   }, [selectedCompany, dateRange]);
 
-  // 格式化数字，添加千位分隔符
+  // 格式化数字
   const formatNumber = (num: number): string => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
@@ -257,12 +275,12 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
       <div className="mb-6">
         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">车企价格区间分布</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          分析{selectedCompany.name}的价格区间车型分布和销量分布
+          分析{selectedCompany.name}的价格区间车型分布和销量分布（同一车型多能源版本独立计数）
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 第一个圆饼图：价格区间车型数量分布 */}
+        {/* 价格区间车型数量分布 */}
         <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
           <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">价格区间车型数量分布</h4>
           <div className="h-[200px]">
@@ -313,11 +331,11 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
             )}
           </div>
           <p className="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
-            按车型数量统计的价格区间分布
+            同一车型不同能源版本，即使价格相同也独立计数
           </p>
         </div>
 
-        {/* 第二个圆饼图：价格区间销量分布 */}
+        {/* 价格区间销量分布 */}
         <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
           <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 text-center">价格区间销量分布</h4>
           <div className="h-[200px]">
@@ -368,7 +386,7 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
             )}
           </div>
           <p className="mt-2 text-xs text-center text-gray-500 dark:text-gray-400">
-            按销量统计的价格区间分布
+            同一价格区间内，不同能源版本销量累加
           </p>
         </div>
       </div>
@@ -377,7 +395,7 @@ const CarCompanyByPriceRangeChart: React.FC<CarCompanyByPriceRangeChartProps> = 
       <div className="mt-6 text-xs text-gray-500 dark:text-gray-400">
         <p>
           <i className="fa-solid fa-circle-info mr-1"></i>
-          图表展示{selectedCompany.name}的价格区间车型分布和销量分布情况。数据基于选定的时间范围。
+          图表展示{selectedCompany.name}的价格区间分布：同一车型不同能源版本，即使价格相同，车型数量也独立计数；销量则累加至对应价格区间。数据基于选定的时间范围。
         </p>
       </div>
     </motion.div>

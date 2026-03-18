@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'; // 移除 Legend 导入
 import { motion } from 'framer-motion';
 import { DateRange, CarCompany } from '../types';
 import { getCurrentCarModelData, formatMonthWithYear, getLatestModelPrice } from '../mocks/data';
@@ -47,14 +47,19 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
   const [showEnergyDropdown, setShowEnergyDropdown] = useState<boolean>(false);
   const [showPriceDropdown, setShowPriceDropdown] = useState<boolean>(false);
   
+  // 新增：控制是否合并能源类型数据的开关状态（默认不合并）
+  const [isMergeEnergyType, setIsMergeEnergyType] = useState<boolean>(false);
+  
   // 图表数据状态
   const [chartData, setChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  // 新增：存储TOP10车型名称（用于渲染自定义图例）
+  const [top10ModelNames, setTop10ModelNames] = useState<string[]>([]);
   
-  // 追踪当前悬停的车型
+  // 追踪当前悬停的车型（用于高亮）
   const [hoveredModel, setHoveredModel] = useState<string | null>(null);
 
-  // 加载车型数据
+  // 加载车型数据 —— 依赖添加 isMergeEnergyType，开关变化时重新加载
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -67,12 +72,90 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
           item.manufacturer === selectedCompany.name
         );
         
-        // 添加示例数据确保特斯拉和理想等车企有完整数据
+        // 补充同一车型多能源版本的示例数据
         if (companyModels.length === 0 || companyModels.every(model => model.sales === 0)) {
-          // 为特斯拉添加示例数据
-          if (selectedCompany.name === '特斯拉') {
+          // 华为/问界：M7纯电+增程版本（同一车型不同能源）
+          if (selectedCompany.name === '华为') {
             companyModels = [
-              // 添加Model 3和Model Y的多月份数据
+              // M7增程版
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '增程',
+                sales: 8000,
+                minPrice: 36.00,
+                maxPrice: 40.00,
+                month: '1月',
+                year: 2025
+              },
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '增程',
+                sales: 7500,
+                minPrice: 36.00,
+                maxPrice: 40.00,
+                month: '2月',
+                year: 2025
+              },
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '增程',
+                sales: 7000,
+                minPrice: 36.00,
+                maxPrice: 40.00,
+                month: '3月',
+                year: 2025
+              },
+              // M7纯电版
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '纯电',
+                sales: 6000,
+                minPrice: 36.00,
+                maxPrice: 40.00,
+                month: '1月',
+                year: 2025
+              },
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '纯电',
+                sales: 6500,
+                minPrice: 36.00,
+                maxPrice: 40.00,
+                month: '2月',
+                year: 2025
+              },
+              {
+                manufacturer: '华为',
+                brand: '问界',
+                modelName: 'M7',
+                vehicleType: 'SUV',
+                energyType: '纯电',
+                sales: 7000,
+                minPrice: 36.00,
+                maxPrice: 40.00,
+                month: '3月',
+                year: 2025
+              }
+            ];
+          } 
+          // 特斯拉示例（单能源类型）
+          else if (selectedCompany.name === '特斯拉') {
+            companyModels = [
               {
                 manufacturer: '特斯拉',
                 brand: '特斯拉',
@@ -147,7 +230,7 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
               }
             ];
           } 
-          // 为理想添加L8等车型的示例数据
+          // 理想示例
           else if (selectedCompany.name === '理想') {
             companyModels = [
               {
@@ -188,9 +271,10 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
               }
             ];
           }
-          // 为其他车企添加通用示例数据
+          // 其他车企通用示例（同一车型多能源版本）
           else {
             companyModels = [
+              // 主力车型A-纯电
               {
                 manufacturer: selectedCompany.name,
                 brand: selectedCompany.name,
@@ -226,6 +310,43 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
                 maxPrice: 30,
                 month: '3月',
                 year: 2025
+              },
+              // 主力车型A-插混
+              {
+                manufacturer: selectedCompany.name,
+                brand: selectedCompany.name,
+                modelName: '主力车型A',
+                vehicleType: 'SUV',
+                energyType: '插混',
+                sales: 3000,
+                minPrice: 18,
+                maxPrice: 28,
+                month: '1月',
+                year: 2025
+              },
+              {
+                manufacturer: selectedCompany.name,
+                brand: selectedCompany.name,
+                modelName: '主力车型A',
+                vehicleType: 'SUV',
+                energyType: '插混',
+                sales: 3500,
+                minPrice: 18,
+                maxPrice: 28,
+                month: '2月',
+                year: 2025
+              },
+              {
+                manufacturer: selectedCompany.name,
+                brand: selectedCompany.name,
+                modelName: '主力车型A',
+                vehicleType: 'SUV',
+                energyType: '插混',
+                sales: 4000,
+                minPrice: 18,
+                maxPrice: 28,
+                month: '3月',
+                year: 2025
               }
             ];
           }
@@ -243,11 +364,14 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
           return energyMatch && priceMatch;
         });
         
-        // 按车型名称和月份聚合数据
+        // 核心修改：根据开关状态动态生成聚合key
         const modelMonthMap = new Map<string, Map<string, number>>();
         
         filteredModels.forEach(item => {
-          const modelKey = item.modelName;
+          // 合并模式：仅用车型名；分开模式：车型名(能源类型)
+          const modelKey = isMergeEnergyType 
+            ? item.modelName 
+            : `${item.modelName}(${item.energyType})`;
           const monthKey = `${item.year}-${item.month}`;
           
           if (!modelMonthMap.has(modelKey)) {
@@ -262,20 +386,19 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
           monthMap.set(monthKey, monthMap.get(monthKey)! + item.sales);
         });
         
-      // 获取所有月份并按时间顺序排序
-      const allMonthKeys = Array.from(new Set(
-        Array.from(modelMonthMap.values())
-          .flatMap(monthMap => Array.from(monthMap.keys()))
-      )).sort((a, b) => {
-        // 解析年月进行比较
-        const [yearA, monthA] = a.split('-');
-        const [yearB, monthB] = b.split('-');
-        
-        if (parseInt(yearA) !== parseInt(yearB)) {
-          return parseInt(yearA) - parseInt(yearB);
-        }
-        return parseInt(monthA.replace('月', '')) - parseInt(monthB.replace('月', ''));
-      });
+        // 获取所有月份并按时间顺序排序
+        const allMonthKeys = Array.from(new Set(
+          Array.from(modelMonthMap.values())
+            .flatMap(monthMap => Array.from(monthMap.keys()))
+        )).sort((a, b) => {
+          const [yearA, monthA] = a.split('-');
+          const [yearB, monthB] = b.split('-');
+          
+          if (parseInt(yearA) !== parseInt(yearB)) {
+            return parseInt(yearA) - parseInt(yearB);
+          }
+          return parseInt(monthA.replace('月', '')) - parseInt(monthB.replace('月', ''));
+        });
         
         // 转换为图表所需的数据格式
         const chartDataFormatted: any[] = [];
@@ -306,6 +429,9 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
           .slice(0, 10)
           .map(item => item.name);
         
+        // 存储TOP10车型名称（用于渲染自定义图例）
+        setTop10ModelNames(top10Models);
+        
         // 过滤图表数据，只保留前10个车型
         const finalChartData = chartDataFormatted.map(dataPoint => {
           const filteredData: any = { month: dataPoint.month };
@@ -321,19 +447,19 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
       } catch (error) {
         console.error('获取数据失败:', error);
         setChartData([]);
+        setTop10ModelNames([]);
       } finally {
         setIsLoading(false);
       }
     };
     
     loadData();
-  }, [selectedCompany, dateRange, selectedEnergyTypes, selectedPriceRanges]);
+  }, [selectedCompany, dateRange, selectedEnergyTypes, selectedPriceRanges, isMergeEnergyType]);
 
   // 处理能源类型选择变化
   const handleEnergyTypeToggle = (energyType: string) => {
     setSelectedEnergyTypes(prev => {
       if (prev.includes(energyType)) {
-        // 确保至少保留一个选中项
         if (prev.length > 1) {
           return prev.filter(type => type !== energyType);
         }
@@ -344,12 +470,10 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
     });
   };
   
-  // 全选能源类型
   const selectAllEnergyTypes = () => {
     setSelectedEnergyTypes(energyTypes.map(type => type.name));
   };
   
-  // 清除所有能源类型选择
   const clearAllEnergyTypes = () => {
     if (energyTypes.length > 0) {
       setSelectedEnergyTypes([energyTypes[0].name]);
@@ -360,7 +484,6 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
   const handlePriceRangeToggle = (priceRange: string) => {
     setSelectedPriceRanges(prev => {
       if (prev.includes(priceRange)) {
-        // 确保至少保留一个选中项
         if (prev.length > 1) {
           return prev.filter(range => range !== priceRange);
         }
@@ -371,28 +494,25 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
     });
   };
   
-  // 全选价格区间
   const selectAllPriceRanges = () => {
     setSelectedPriceRanges(PRICE_RANGES.map(range => range.name));
   };
   
-  // 清除所有价格区间选择
   const clearAllPriceRanges = () => {
     if (PRICE_RANGES.length > 0) {
       setSelectedPriceRanges([PRICE_RANGES[0].name]);
     }
   };
 
-  // 格式化数字，添加千位分隔符
+  // 格式化数字
   const formatNumber = (num: number): string => {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  // 获取能源类型的图标和颜色
+  // 获取能源类型信息
   const getEnergyTypeInfo = (energyType: string) => {
     const energyTypeConfig = energyTypes.find(type => type.name === energyType);
     if (energyTypeConfig) {
-      // 为每种能源类型定义颜色类
       const colorMap: Record<string, string> = {
         '纯电': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
         '插混': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -404,10 +524,10 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
         color: colorMap[energyType] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' 
       };
     }
-    return { icon: 'fa-question', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' };
+    return { icon: 'fa-question', color: 'bg-gray-100 text-gray-800 dark:text-gray-300' };
   };
 
-  // 生成随机颜色
+  // 生成随机颜色（和折线颜色保持一致）
   const generateColor = (index: number): string => {
     const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#ef4444', '#14b8a6', '#84cc16', '#06b6d4', '#a855f7'];
     return colors[index % colors.length];
@@ -420,7 +540,6 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
         <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 dark:text-white">{label}</p>
           {payload.map((entry: any, index: number) => {
-            // 检查当前条目是否是悬停的车型
             const isHovered = hoveredModel && entry.name === hoveredModel;
             
             return (
@@ -453,6 +572,15 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
     visible: { opacity: 1, transition: { duration: 0.8 } },
   };
 
+  // 自定义图例项点击/悬停处理
+  const handleLegendMouseEnter = (modelName: string) => {
+    setHoveredModel(modelName);
+  };
+  
+  const handleLegendMouseLeave = () => {
+    setHoveredModel(null);
+  };
+
   return (
     <motion.div
       variants={chartVariants}
@@ -464,12 +592,33 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
          <div>
            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">TOP10车型销量趋势</h3>
            <p className="text-sm text-gray-500 dark:text-gray-400">
-             {selectedCompany.name}销量TOP10车型的月度销量变化趋势
+             {selectedCompany.name}销量TOP10车型{isMergeEnergyType ? '（合并能源类型）' : '（分能源类型）'}的月度销量变化趋势
            </p>
          </div>
        </div>
         
+        {/* 筛选栏：合并能源类型开关 + 能源/价格筛选 */}
         <div className="flex flex-wrap gap-4 mt-4 md:mt-0 w-full md:w-auto">
+          {/* 合并能源类型开关 */}
+          <div className="flex items-center space-x-2 w-full md:w-auto">
+            <input
+              type="checkbox"
+              id="merge-energy-type"
+              checked={isMergeEnergyType}
+              onChange={(e) => setIsMergeEnergyType(e.target.checked)}
+              className="w-4 h-4 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
+            />
+            <label
+              htmlFor="merge-energy-type"
+              className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              合并能源类型数据
+              <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                （勾选后同一车型不同能源销量合并）
+              </span>
+            </label>
+          </div>
+
           {/* 能源类型筛选下拉框 */}
           <div className="relative w-full md:w-auto">
             <button
@@ -580,7 +729,41 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
             )}
           </div>
         </div>
+
+        {/* 自定义固定图例：不随图表滚动 */}
+        {!isLoading && top10ModelNames.length > 0 && (
+          <div className="mt-4 mb-2 px-2">
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {top10ModelNames.map((modelName, index) => {
+                const isHovered = hoveredModel === modelName;
+                return (
+                  <div
+                    key={modelName}
+                    className="flex items-center cursor-pointer"
+                    onMouseEnter={() => handleLegendMouseEnter(modelName)}
+                    onMouseLeave={handleLegendMouseLeave}
+                  >
+                    <span
+                      className="w-3 h-3 inline-block mr-1.5"
+                      style={{ backgroundColor: generateColor(index) }}
+                    ></span>
+                    <span
+                      className={`text-sm ${
+                        isHovered 
+                          ? 'font-bold text-blue-600 dark:text-blue-400' 
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {modelName}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       
+      {/* 图表容器：横向滚动，图例已抽离 */}
       <div className="h-[400px] overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
         <div className="min-w-[800px] h-full">
           {isLoading ? (
@@ -607,15 +790,12 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
                   axisLine={{ stroke: '#e5e7eb' }}
                   tickFormatter={(value) => formatNumber(value)}
                 />
-        <Tooltip 
-          content={<CustomTooltip />} 
-          contentStyle={{ pointerEvents: 'none' }}
-         offset={100} // 调整偏移量值为100
-        />
-                <Legend 
-                  wrapperStyle={{ paddingTop: 10 }}
-                  formatter={(value) => <span className={`text-sm ${hoveredModel === value ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>{value}</span>}
+                <Tooltip 
+                  content={<CustomTooltip />} 
+                  contentStyle={{ pointerEvents: 'none' }}
+                  offset={100}
                 />
+                {/* 移除内置Legend组件 */}
                 {Object.keys(chartData[0])
                   .filter(key => key !== 'month')
                   .map((modelName, index) => {
@@ -639,7 +819,6 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
                           strokeWidth: 2 
                         }}
                         animationDuration={1500}
-                        // 添加鼠标事件处理器
                         onMouseEnter={() => setHoveredModel(modelName)}
                         onMouseLeave={() => setHoveredModel(null)}
                         style={{ 
@@ -675,7 +854,11 @@ const Top10ModelsTrendChart: React.FC<Top10ModelsTrendChartProps> = ({
       <div className="mt-6 text-xs text-gray-500 dark:text-gray-400">
         <p>
           <i className="fa-solid fa-circle-info mr-1"></i>
-          图表展示{selectedCompany.name}销量排名前10的车型在选定时间范围内的月度销量趋势。可通过能源类型和价格区间进行筛选。
+          图表展示{selectedCompany.name}销量排名前10的车型在选定时间范围内的月度销量趋势。
+          {isMergeEnergyType 
+            ? '已开启「合并能源类型数据」，同一车型不同能源版本销量将合并为一条线展示；' 
+            : '未开启「合并能源类型数据」，同一车型不同能源版本将作为独立线条展示；'}
+          可通过能源类型和价格区间进行筛选，鼠标悬浮图例/折线可高亮对应车型数据。
         </p>
       </div>
     </motion.div>
