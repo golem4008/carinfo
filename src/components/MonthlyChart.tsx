@@ -55,11 +55,18 @@ const MonthlyChart: React.FC<MonthlyChartProps> = ({ className = '', dateRange }
       const monthYearKey = `${item.year}-${item.month}`;
       const monthData = monthlyDataMap.get(monthYearKey)!;
       
-      if (isMainstreamManufacturer(item.company) && selectedCompanies.some(company => company.name === item.company)) {
-        // 对于主流厂商且被选中的公司，单独累加销量
-        monthData[item.company] += item.sales;
+      // 1. 判断当前厂商是否是主流厂商
+      const isMainstream = isMainstreamManufacturer(item.company);
+      // 2. 判断当前厂商是否被选中
+      const isSelected = selectedCompanies.some(company => company.name === item.company);
+
+      if (isMainstream) {
+        // 🔧 主流厂商：仅"被选中"时才累加销量，未选中则直接忽略（不合并到其他）
+        if (isSelected) {
+          monthData[item.company] += item.sales;
+        }
       } else {
-        // 对于非主流厂商或未被选中的主流厂商，统一合并到"其他厂商"
+        // 🔧 非主流厂商：无论是否选中，都合并到"其他厂商"
         monthData['其他厂商'] += item.sales;
       }
     });

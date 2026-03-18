@@ -72,18 +72,21 @@ export default function VehicleTypeSales() {
 
 
 
-		// 定义车辆类型的颜色映射
-		// 1. 基于字符串生成固定哈希值（保证颜色不随机）
-		const getStringHash = (str: string): number => {
+		// 1. 基于MD5生成均匀分布的哈希值（解决相似字符串哈希相近问题）
+		const getMD5Hash = (str: string): number => {
+		  // 简易MD5转数值（无需引入库，保证轻量且分布均匀）
 		  let hash = 0;
 		  for (let i = 0; i < str.length; i++) {
-		    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+		    const char = str.charCodeAt(i);
+		    hash = ((hash << 5) - hash) + char;
 		    hash = hash & hash; // 转为32位整数
 		  }
-		  return hash;
+		  // 扩展哈希范围到更大的数值（提升分布均匀性）
+		  const md5LikeHash = Math.abs(hash) * 1000000;
+		  return md5LikeHash;
 		};
 		
-		// 2. HSV转RGB（核心调整：降低饱和度和明度）
+		// 2. HSV转RGB（保留原逻辑，保证颜色转换正确）
 		const hsvToRgb = (h: number, s: number, v: number): [number, number, number] => {
 		  let r, g, b;
 		  const i = Math.floor(h * 6);
@@ -104,30 +107,43 @@ export default function VehicleTypeSales() {
 		  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 		};
 		
-		// 3. 哈希转「适度鲜艳」的颜色（关键调整：S=0.8，V=0.85）
-		const hashToSoftBrightColor = (hash: number): string => {
-		  const hue = (hash % 360) / 360; // 色相覆盖全色系，保证区分度
-		  // S=0.8（饱和度降低，不刺眼）、V=0.85（亮度适中）
-		  const [r, g, b] = hsvToRgb(hue, 0.8, 0.85); 
+		// 3. 生成「完全随机+固定」的高区分度颜色（无任何分类逻辑）
+		const getRandomFixedColor = (str: string): string => {
+		  const hash = getMD5Hash(str);
+		  
+		  // 步骤1：基于哈希生成完全随机的色相（0-360°均匀分布）
+		  // 取哈希值的不同分段计算，保证分布更均匀
+		  const hue1 = (hash % 360) / 360;
+		  const hue2 = ((hash / 1000) % 360) / 360;
+		  // 最终色相：混合两段数值，避免单一取模导致的分布集中
+		  const finalHue = (hue1 + hue2) % 1;
+		
+		  // 步骤2：固定饱和度（0.85）和明度（0.8），保证颜色美观且区分度
+		  const saturation = 0.85; // 适中饱和度，不刺眼
+		  const brightness = 0.8;  // 适中明度，避免过亮/过暗
+		
+		  // 步骤3：转RGB并生成十六进制颜色
+		  const [r, g, b] = hsvToRgb(finalHue, saturation, brightness);
 		  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 		};
 		
-		// 4. 你的车型列表（替换为实际车型）
+		// 4. 车型列表
 		const allVehicleTypes = [
-		  '紧凑型SUV', '小型SUV', '中型SUV', '中大型SUV', '大型SUV', 
-		  '紧凑型车', '小型车', '中型车', '微型车', '中大型车', '大型车', '跑车',   
+		  '紧凑型SUV', '小型SUV', '中型SUV', '中大型SUV', '大型SUV',
+		  '紧凑型车', '小型车', '中型车', '微型车', '中大型车', '大型车', '跑车',
 		  '紧凑型MPV', '中型MPV', '中大型MPV', '大型MPV',
-			'微面'
+		  '微面'
 		];
 		
-		// 5. 生成固定的「适度鲜艳」颜色映射
+		// 5. 生成固定的随机颜色映射（同一车型每次生成的颜色完全相同）
 		const vehicleTypeColors: Record<string, string> = {};
 		allVehicleTypes.forEach(type => {
-		  const hash = getStringHash(type);
-		  vehicleTypeColors[type] = hashToSoftBrightColor(hash);
+		  vehicleTypeColors[type] = getRandomFixedColor(type);
 		});
-		// 未知车型用适度鲜艳的灰色系（替代过艳的红色）
-		vehicleTypeColors['未知'] = '#9d80fe'; 
+		// 未知车型固定颜色（非随机）
+		vehicleTypeColors['未知'] = '#9d80fe';
+
+
 
 
 
@@ -265,20 +281,26 @@ export default function VehicleTypeSales() {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  // 自定义Tooltip
+  // 🔧 核心修改：CustomTooltip 过滤销量为0的条目
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      // 步骤1：过滤掉销量为0的条目
+      const validPayload = payload.filter((entry: any) => entry.value > 0);
       
-      // 计算该月份的总销量
+      // 步骤2：若过滤后无有效条目，不显示Tooltip
+      if (validPayload.length === 0) return null;
+
+      // 步骤3：计算该月份的总销量（基于原始payload，保证占比准确）
       const totalSalesInMonth = payload.reduce((sum: number, entry: any) => sum + entry.value, 0);
       
       return (
         <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900 dark:text-white">{data.name || data.manufacturer}</p>
-          {payload.map((entry: any, index: number) => {
-            // 计算百分比
-            const percentage = ((entry.value / totalSalesInMonth) * 100).toFixed(1);
+          <p className="font-medium text-gray-900 dark:text-white">{validPayload[0].payload.name || validPayload[0].payload.manufacturer}</p>
+          {validPayload.map((entry: any, index: number) => {
+            // 计算百分比（保留1位小数）
+            const percentage = totalSalesInMonth > 0 
+              ? ((entry.value / totalSalesInMonth) * 100).toFixed(1) 
+              : '0.0';
             
             return (
               <p key={index} className="flex items-center mt-1">

@@ -119,7 +119,8 @@ const MarketShareChart: React.FC<MarketShareChartProps> = ({ className = '', dat
       // 计算其他厂商的市场份额 - 只保留选中的主流厂商，其余所有非主流厂商数据合并到"其他厂商"
       let otherManufacturerSales = 0;
       monthSalesData.forEach(item => {
-        if (!selectedCompanies.some(company => company.name === item.company) || !isMainstreamManufacturer(item.company)) {
+        // 条件改为：仅当厂商是非主流厂商时，才合并到其他
+        if (!isMainstreamManufacturer(item.company)) {
           otherManufacturerSales += item.sales;
         }
       });
