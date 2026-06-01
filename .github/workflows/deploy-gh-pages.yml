@@ -32,9 +32,9 @@ jobs:
           node -v
           pnpm -v
 
-      # 🔴 核心：非交互模式批准 esbuild 构建脚本（CI专用）
+      # 🔴 修复：删除--no-interactive，直接批准esbuild
       - name: 批准esbuild编译脚本
-        run: pnpm approve-builds --no-interactive esbuild
+        run: pnpm approve-builds esbuild
 
       - name: 安装项目依赖
         run: pnpm install
