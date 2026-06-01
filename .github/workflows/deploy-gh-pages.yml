@@ -32,7 +32,7 @@ jobs:
           node -v
           pnpm -v
 
-      # 🔴 修复：删除--no-interactive，直接批准esbuild
+      # 🔴 核心修复：批准esbuild（无额外参数）
       - name: 批准esbuild编译脚本
         run: pnpm approve-builds esbuild
 
