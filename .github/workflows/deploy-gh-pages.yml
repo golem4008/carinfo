@@ -2,24 +2,21 @@ name: 自动打包并部署carinfo到GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # 推送到main分支触发
+    branches: [ main ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # 步骤1：拉取仓库代码
       - name: 拉取仓库代码
         uses: actions/checkout@v4
 
-      # 步骤2：安装pnpm包管理器
       - name: 安装pnpm包管理器
         uses: pnpm/action-setup@v3
         with:
           version: latest
           run_install: false
 
-      # 步骤3：安装Node.js环境
       - name: 安装Node.js环境
         uses: actions/setup-node@v4
         with:
@@ -27,33 +24,27 @@ jobs:
           check-latest: true
           cache: 'pnpm'
 
-      # 步骤4：配置pnpm国内镜像（加速依赖下载）
       - name: 配置pnpm国内镜像源
         run: pnpm config set registry https://registry.npmmirror.com
 
-      # 🔴 新增步骤：解除pnpm脚本拦截（核心修复）
-      - name: 允许依赖执行编译脚本（解决esbuild报错）
-        run: pnpm config set enable-pre-post-scripts true
-
-      # 步骤5：验证环境版本
       - name: 验证pnpm/node版本
         run: |
           node -v
           pnpm -v
 
-      # 步骤6：安装项目依赖（现在不会被拦截）
+      # 🔴 核心：非交互模式批准 esbuild 构建脚本（CI专用）
+      - name: 批准esbuild编译脚本
+        run: pnpm approve-builds --no-interactive esbuild
+
       - name: 安装项目依赖
         run: pnpm install
 
-      # 步骤7：打包项目
       - name: 打包项目（适配GitHub Pages）
         run: pnpm run build:github
 
-      # 步骤8：创建.nojekyll 禁用Jekyll
       - name: 创建.nojekyll文件
         run: touch dist/.nojekyll
 
-      # 步骤9：部署到GitHub Pages
       - name: 部署到GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
