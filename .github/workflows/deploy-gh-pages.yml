@@ -11,10 +11,11 @@ jobs:
       - name: 拉取仓库代码
         uses: actions/checkout@v4
 
+      # 🔴 固定 pnpm 版本为 8.5.1（无构建脚本拦截，完美兼容）
       - name: 安装pnpm包管理器
         uses: pnpm/action-setup@v3
         with:
-          version: latest
+          version: 8.5.1
           run_install: false
 
       - name: 安装Node.js环境
@@ -32,10 +33,7 @@ jobs:
           node -v
           pnpm -v
 
-      # 🔴 核心修复：批准esbuild（无额外参数）
-      - name: 批准esbuild编译脚本
-        run: pnpm approve-builds esbuild
-
+      # 直接安装依赖，无任何额外批准命令
       - name: 安装项目依赖
         run: pnpm install
 
